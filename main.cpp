@@ -91,7 +91,7 @@ reverse_four_inner(MTF &mtf1, MTF &mtf2, MTF &mtf3, MTF &mtf4, uint8_t c1, uint8
 static std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>
 forward_four_inner(MTF &mtf1, MTF &mtf2, MTF &mtf3, MTF &mtf4, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t c4) {
 
-    unsigned int j = 0;
+    unsigned int j;
 
     int8_t d1 = mtf1.mtf_rank_f[c1];
     int8_t d2 = mtf2.mtf_rank_f[c2];
@@ -102,8 +102,8 @@ forward_four_inner(MTF &mtf1, MTF &mtf2, MTF &mtf3, MTF &mtf4, uint8_t c1, uint8
     for (j = 0; j < ALPHABET_SIZE; j++) {
         mtf1.mtf_rank_f[j] -= (mtf1.mtf_rank_f[j] < d1) ? int8_t(0xFF) : int8_t(0);
         mtf2.mtf_rank_f[j] -= (mtf2.mtf_rank_f[j] < d2) ? int8_t(0xFF) : int8_t(0);
-        mtf3.mtf_rank_f[j] -= (mtf3.mtf_rank_f[j] < d2) ? int8_t(0xFF) : int8_t(0);
-        mtf4.mtf_rank_f[j] -= (mtf4.mtf_rank_f[j] < d2) ? int8_t(0xFF) : int8_t(0);
+        mtf3.mtf_rank_f[j] -= (mtf3.mtf_rank_f[j] < d3) ? int8_t(0xFF) : int8_t(0);
+        mtf4.mtf_rank_f[j] -= (mtf4.mtf_rank_f[j] < d4) ? int8_t(0xFF) : int8_t(0);
 
     }
 
@@ -198,7 +198,7 @@ int apply_sst(char *in_file, char *out_file) {
     int ret = 0;
     signed long fsize;
     signed long bytes_read;
-    int bytes_consumed = 0;
+    int bytes_consumed;
     size_t read_bytes = 0;
 
 
@@ -304,7 +304,6 @@ int apply_inverse_sst(char *in_file, char *out_file) {
 
         bytes_read = fread(input_data.data(), 1, BLOCK_SIZE, in_fd);
 
-
         // round down to nearest 4
         size_t block_size = (bytes_read / 4) * 4;
         read_bytes += bytes_read;
@@ -320,7 +319,6 @@ int apply_inverse_sst(char *in_file, char *out_file) {
         if ((bytes_read - block_size) != 0) {
 
             size_t diff = bytes_read - block_size;
-
             // some bytes were read but not processed, just write them as they are
             std::cout << "Handling extra bytes \n";
             bytes_written = fwrite(input_data.data() + block_size, 1, diff, out_fd);
