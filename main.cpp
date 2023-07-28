@@ -9,46 +9,53 @@
 // https://encode.su/threads/2520-MTF-There-can-be-only-one!
 // https://github.com/Bulat-Ziganshin/Compression-Research/blob/master/algo_mtf/mtf_cpu_shelwien.cpp
 
-
+/*
+* Maximum uinque symbols we accept per byte, this is
+* 256 to cover all cases
+*/
 #define ALPHABET_SIZE 256
-
+/*
+* Single MTF block for which all items inside this block
+* are carried through MTF.
+* Smaller blocks will allow blocks to fit in cache while larger
+* blocks will increase compression ratio
+*/
 #define BLOCK_SIZE (12 * (1<<20))
-
+/*
+* Extra bytes to allocate on buffers to help with out of order reads and writed 
+*/
 #define SLOP_BYTES 1024
 
+/*
+* The main structure for storing MTF coefficients during iterations
+*/
 struct MTF {
-
-
+    // Holds forward mtf sequences
     int8_t mtf_rank_f[ALPHABET_SIZE];
+    // Holds inverse mtf sequence position
     uint8_t mtf_rank_b[ALPHABET_SIZE];
 
+    /// Initialize MTF buffers.
     constexpr inline void init() {
         unsigned int i = 0;
         for (i = 0; i < ALPHABET_SIZE; i++) mtf_rank_f[i] = i - 128;
         for (i = 0; i < ALPHABET_SIZE; i++) mtf_rank_b[i] = i;
     }
-
-
-    constexpr inline uint8_t forward(uint8_t c) {
-        unsigned int j = 0;
-        int8_t d = mtf_rank_f[c];
-        for (j = 0; j < ALPHABET_SIZE; j++) {
-            mtf_rank_f[j] -= (mtf_rank_f[j] < d) ? int8_t(0xFF) : int8_t(0);
-        }
-        mtf_rank_f[c] = -128;
-        int ca = d + 128;
-        return d + 128;
-    }
-
-    constexpr inline uint8_t inverse(uint8_t c) {
-        unsigned int j = c;
-        auto d = (int8_t) mtf_rank_b[c];
-        for (; j > 0; j--) { mtf_rank_b[j] = mtf_rank_b[j - 1]; };
-        mtf_rank_b[0] = d;
-        return d;
-    }
 };
-
+/*
+* Reverse effect of Move to Front Transform
+* 
+* This reverses effect of the forward transform
+* 
+* # Arguments
+* - MTF1-4: MTF tables on that position.
+* - c1-c4: MTF coded coefficients at that position
+*
+*  The function will modify MTF1-MTF4 structs
+*
+* # Returns
+* Initial values before the MTF transform
+*/
 static std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>
 reverse_four_inner(MTF &mtf1, MTF &mtf2, MTF &mtf3, MTF &mtf4, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t c4) {
     unsigned int j1 = c1, j2 = c2, j3 = c3, j4 = c4;
@@ -87,7 +94,19 @@ reverse_four_inner(MTF &mtf1, MTF &mtf2, MTF &mtf3, MTF &mtf4, uint8_t c1, uint8
     return std::make_tuple(d1, d2, d3, d4);
 }
 
-
+/* 
+* Perform a forward move to transform operation
+* 
+* 
+* # Arguments
+* - MTF1-4: MTF tables on that position.
+* - c1-c4: Raw bytes which are to be transformed 
+*
+*  The function will modify MTF1-MTF4 structs
+*
+* # Returns
+* New MTF coded transforms.
+*/
 static std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>
 forward_four_inner(MTF &mtf1, MTF &mtf2, MTF &mtf3, MTF &mtf4, uint8_t c1, uint8_t c2, uint8_t c3, uint8_t c4) {
 
